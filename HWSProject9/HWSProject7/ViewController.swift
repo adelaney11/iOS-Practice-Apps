@@ -18,26 +18,28 @@ class ViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        performSelector(inBackground: #selector(fetchJson), with: nil)
+    }
+    
+    @objc
+    func fetchJson(){
         let urlString: String
 
         if navigationController?.tabBarItem.tag == 0 {
-            // urlString = "https://api.whitehouse.gov/v1/petitions.json?limit=100"
-            urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
+            urlString = "https://api.whitehouse.gov/v1/petitions.json?limit=100"
         } else {
-            // urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
-            urlString = "https://www.hackingwithswift.com/samples/petitions-2.json"
+            urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
         }
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .action, target: self, action: #selector(showCredits))
-        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .search, target: self, action: #selector(searchFor))
+
         if let url = URL(string: urlString) {
-            if let data = try? Data(contentsOf: url){
-                // OK to parse
+            if let data = try? Data(contentsOf: url) {
                 parseJson(json: data)
                 return
             }
         }
-        
-        showError()
+
+        performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
+
     }
     
     func parseJson(json: Data){
@@ -46,15 +48,18 @@ class ViewController: UITableViewController {
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
             filteredPetitions = petitions
-            tableView.reloadData()
+            tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+        } else {
+            performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
         }
         
     }
     
+    @objc
     func showError() {
         let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: "OK", style: .default))
-        present(ac, animated: true)
+        self.present(ac, animated: true)
     }
     
     @objc
@@ -66,31 +71,23 @@ class ViewController: UITableViewController {
     
     @objc
     func searchFor(){
-        let ac = UIAlertController(title: "Filter", message: "Search for keywords in petitions", preferredStyle: .alert)
+        let ac = UIAlertController(title: "Filter", message: nil, preferredStyle: .alert)
         ac.addTextField()
-        let submitAction = UIAlertAction(title: "Submit", style: .default){
-            [weak self, weak ac] action in
+        let submitAction = UIAlertAction(title: "Submit", style: .default){  [weak ac] action in
             guard let term = ac?.textFields?[0].text else { return }
-            self?.performSelector(inBackground: #selector(self?.filterBy), with: term)
-        }
-        ac.addAction(submitAction)
-        present(ac, animated: true)
-    }
-    
-    @objc
-    func filterBy(_ term: String){
             let lowerTerm = term.lowercased()
             for petition in self.petitions {
                 if (petition.title.lowercased().contains(lowerTerm)){
-                    DispatchQueue.main.async(){
-                        self.filteredPetitions.insert(petition, at: 0)
-                        let indexPath = IndexPath(row: 0, section: 0)
-                        self.tableView.insertRows(at: [indexPath], with: .automatic)
-                    }
+                    self.filteredPetitions.insert(petition, at: 0)
+                    let indexPath = IndexPath(row: 0, section: 0)
+                    self.tableView.insertRows(at: [indexPath], with: .automatic)
                 }
             }
+        }
+        ac.addAction(submitAction)
+        present(ac, animated: true)
+ 
     }
-    
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return filteredPetitions.count

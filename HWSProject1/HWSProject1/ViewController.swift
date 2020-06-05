@@ -17,18 +17,22 @@ class ViewController: UITableViewController {
         navigationController?.navigationBar.prefersLargeTitles = true
         // Do any additional setup after loading the view.
         title = "Storm Viewer"
-        let fm = FileManager.default
-        let path = Bundle.main.resourcePath!
-        let items = try! fm.contentsOfDirectory(atPath: path)
-        
-        for item in items {
-            if item.hasPrefix("nssl"){
-                // this is a picture to load
-                pictures.append(item)
-                
+        DispatchQueue.global(qos: .userInitiated).async(){
+            let fm = FileManager.default
+            let path = Bundle.main.resourcePath!
+            let items = try! fm.contentsOfDirectory(atPath: path)
+            for item in items {
+                if item.hasPrefix("nssl"){
+                    // this is a picture to load
+                    self.pictures.append(item)
+                }
+            }
+            self.pictures.sort()
+            DispatchQueue.main.async(){
+                self.tableView.reloadData()
             }
         }
-        pictures.sort()
+        
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
